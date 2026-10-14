@@ -1,0 +1,5 @@
+.DS_Store
+.build/
+.swiftpm/
+Kommandant.app/
+Kommandant.dmg
