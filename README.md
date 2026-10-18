@@ -6,6 +6,8 @@ Kommandant shows two folders side by side so you can copy and move files between
 
 The user interface is available in **English, German and Italian** and follows the macOS system language. For any other language it uses English.
 
+**[⬇ Download Kommandant.dmg](https://github.com/ellefont/Kommandant/releases/latest/download/Kommandant.dmg)** (macOS 14 or later), or see all [releases](https://github.com/ellefont/Kommandant/releases).
+
 ---
 
 ## Features
@@ -54,7 +56,7 @@ The user interface is available in **English, German and Italian** and follows t
 ## Quick guide
 
 ### Installation
-1. Open `Kommandant.dmg` and drag **Kommandant** onto **Applications**.
+1. [Download `Kommandant.dmg`](https://github.com/ellefont/Kommandant/releases/latest/download/Kommandant.dmg), open it and drag **Kommandant** onto **Applications**.
 2. The app is not signed with an Apple Developer certificate. The first time, right-click the app, choose **Open**, then confirm.
 3. Optional: to analyze the whole internal disk, grant **Full Disk Access** in *System Settings → Privacy & Security*.
 
