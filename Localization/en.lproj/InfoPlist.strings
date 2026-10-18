@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "Kommandant";
+"NSDesktopFolderUsageDescription" = "Kommandant shows and manages the files on your Desktop.";
+"NSDocumentsFolderUsageDescription" = "Kommandant shows and manages the files in your Documents folder.";
+"NSDownloadsFolderUsageDescription" = "Kommandant shows and manages the files in your Downloads folder.";
+"NSRemovableVolumesUsageDescription" = "Kommandant shows and manages files on removable volumes.";
+"NSNetworkVolumesUsageDescription" = "Kommandant shows and manages files on network volumes.";
+"NSAppleEventsUsageDescription" = "Kommandant asks the Finder to empty the Trash.";

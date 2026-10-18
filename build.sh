@@ -9,14 +9,16 @@ BUILD="$(date +%Y%m%d%H%M)"
 swift build -c release
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/de.lproj"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Kommandant "$APP/Contents/MacOS/Kommandant"
 
 ICONSET=.build/Kommandant.iconset
 swift Scripts/make-icon.swift "$ICONSET"
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
-echo '"CFBundleDisplayName" = "Kommandant";' > "$APP/Contents/Resources/de.lproj/InfoPlist.strings"
+# Sprachen: Deutsch, Englisch, Italienisch (Texte in Scripts/translations.py)
+python3 Scripts/translations.py >/dev/null
+cp -R Localization/*.lproj "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -31,8 +33,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$VERSION</string>
     <key>CFBundleVersion</key><string>$BUILD</string>
-    <key>CFBundleDevelopmentRegion</key><string>de</string>
-    <key>CFBundleLocalizations</key><array><string>de</string></array>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleLocalizations</key><array><string>de</string><string>en</string><string>it</string></array>
     <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSHighResolutionCapable</key><true/>

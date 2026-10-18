@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "Kommandant";
+"NSDesktopFolderUsageDescription" = "Kommandant zeigt und verwaltet die Dateien auf deinem Schreibtisch.";
+"NSDocumentsFolderUsageDescription" = "Kommandant zeigt und verwaltet die Dateien in deinem Dokumente-Ordner.";
+"NSDownloadsFolderUsageDescription" = "Kommandant zeigt und verwaltet die Dateien in deinem Downloads-Ordner.";
+"NSRemovableVolumesUsageDescription" = "Kommandant zeigt und verwaltet Dateien auf Wechseldatenträgern.";
+"NSNetworkVolumesUsageDescription" = "Kommandant zeigt und verwaltet Dateien auf Netzwerkvolumes.";
+"NSAppleEventsUsageDescription" = "Kommandant bittet den Finder, den Papierkorb zu leeren.";

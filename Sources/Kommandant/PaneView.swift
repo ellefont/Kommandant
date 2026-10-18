@@ -151,7 +151,7 @@ struct PaneView: View {
             if let error = pane.loadError {
                 ContentUnavailableView("Kein Zugriff", systemImage: "lock", description: Text(error))
             } else if pane.displayed.isEmpty {
-                ContentUnavailableView(pane.filter.isEmpty ? "Ordner ist leer" : "Keine Treffer",
+                ContentUnavailableView(pane.filter.isEmpty ? t("Ordner ist leer") : t("Keine Treffer"),
                                        systemImage: pane.filter.isEmpty ? "folder" : "magnifyingglass")
             }
         }
@@ -165,22 +165,25 @@ struct PaneView: View {
             Button("Neuer Ordner") { app.requestNewFolder(in: side) }
             Button("Aktualisieren") { pane.reload() }
             AnalyzeStorageButton(title: "Speicherplatz hier analysieren", url: pane.url)
+            SyncButton(title: "Mit anderer Seite synchronisieren …", left: pane.url, right: app.pane(side.other).url)
             Button("Im Finder zeigen") { NSWorkspace.shared.open(pane.url) }
         } else {
             Button("Öffnen") { pane.open(ids) }
             Button("Im Finder zeigen") { app.revealInFinder(urls) }
             Divider()
-            Button("Kopieren \(arrow)") { app.requestTransfer(.copy, urls: urls, from: side) }
-            Button("Verschieben \(arrow)") { app.requestTransfer(.move, urls: urls, from: side) }
+            Button(t("Kopieren %@", arrow)) { app.requestTransfer(.copy, urls: urls, from: side) }
+            Button(t("Verschieben %@", arrow)) { app.requestTransfer(.move, urls: urls, from: side) }
+            Button(t("Als ZIP archivieren %@ …", arrow)) { app.requestArchive(urls, from: side) }
             Divider()
             Button("Neuer Ordner") { app.requestNewFolder(in: side) }
-            Button("Neuer Ordner mit Auswahl (\(urls.count))") { app.requestNewFolderWithSelection(urls, in: side) }
+            Button(t("Neuer Ordner mit Auswahl (%ld)", urls.count)) { app.requestNewFolderWithSelection(urls, in: side) }
             if urls.count == 1 {
                 Button("Umbenennen …") { app.requestRename(urls[0]) }
             }
             Button("Pfad kopieren") { app.copyPaths(urls) }
             if urls.count == 1, pane.items.first(where: { $0.url == urls[0] })?.isFolder == true {
                 AnalyzeStorageButton(title: "Speicherplatz analysieren", url: urls[0])
+                SyncButton(title: "Ordner synchronisieren …", left: urls[0], right: app.pane(side.other).url)
             }
             Divider()
             Button("In den Papierkorb legen") { app.requestTrash(urls) }
@@ -194,7 +197,7 @@ struct PaneView: View {
             Text(summary)
             Spacer()
             if let free = pane.freeSpace {
-                Text("\(Fmt.size(free)) verfügbar")
+                Text(t("%@ verfügbar", Fmt.size(free)))
             }
         }
         .font(.caption)
@@ -208,7 +211,7 @@ struct PaneView: View {
         let selected = items.filter { pane.selection.contains($0.id) }
         guard !selected.isEmpty else { return Fmt.objects(items.count) }
         let bytes = selected.filter { !$0.isFolder }.reduce(Int64(0)) { $0 + $1.size }
-        return "\(selected.count) von \(items.count) ausgewählt · \(Fmt.size(bytes))"
+        return t("%ld von %ld ausgewählt · %@", selected.count, items.count, Fmt.size(bytes))
     }
 }
 
@@ -254,7 +257,7 @@ private struct DriveButton: View {
                 Button(action: eject) { Image(systemName: "eject.fill").font(.caption2) }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
-                    .help("„\(volume.name)“ auswerfen")
+                    .help(t("„%@“ auswerfen", volume.name))
             }
         }
         .font(.caption)
@@ -276,7 +279,7 @@ private struct DriveButton: View {
 
     private var help: String {
         guard let total = volume.total, let free = volume.free else { return volume.url.path }
-        return "\(volume.name): \(Fmt.size(free)) von \(Fmt.size(total)) verfügbar"
+        return t("%@: %@ von %@ verfügbar", volume.name, Fmt.size(free), Fmt.size(total))
     }
 }
 

@@ -43,12 +43,17 @@ struct FileItem: Identifiable, Hashable {
         self.isSymlink = v.isSymbolicLink ?? false
         self.size = Int64(v.fileSize ?? 0)
         self.modified = v.contentModificationDate ?? .distantPast
-        self.kind = v.localizedTypeDescription ?? (isDir ? "Ordner" : "Dokument")
+        self.kind = v.localizedTypeDescription ?? (isDir ? t("Ordner") : t("Dokument"))
     }
 }
 
 enum Fmt {
-    static let locale = Locale(identifier: "de_DE")
+    /// Locale of the language the app's UI is shown in, so dates and numbers match the text.
+    static let locale: Locale = {
+        let language = Bundle.main.preferredLocalizations.first ?? "de"
+        let region = Locale.current.region?.identifier
+        return Locale(identifier: region.map { "\(language)_\($0)" } ?? language)
+    }()
 
     static func size(_ bytes: Int64) -> String {
         bytes.formatted(ByteCountFormatStyle(style: .file, allowedUnits: .all, spellsOutZero: true,
@@ -60,7 +65,7 @@ enum Fmt {
         return date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: locale))
     }
 
-    static func objects(_ n: Int) -> String { n == 1 ? "1 Objekt" : "\(n) Objekte" }
+    static func objects(_ n: Int) -> String { n == 1 ? t("1 Objekt") : t("%ld Objekte", n) }
 }
 
 @MainActor
@@ -102,14 +107,14 @@ struct Place: Identifiable {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
         var places = [
-            Place(name: "Benutzerordner", symbol: "house", url: home),
-            Place(name: "Schreibtisch", symbol: "menubar.dock.rectangle", url: home.appending(path: "Desktop")),
-            Place(name: "Dokumente", symbol: "doc", url: home.appending(path: "Documents")),
-            Place(name: "Downloads", symbol: "arrow.down.circle", url: home.appending(path: "Downloads")),
-            Place(name: "Programme", symbol: "square.grid.2x2", url: URL(fileURLWithPath: "/Applications")),
-            Place(name: "Bilder", symbol: "photo", url: home.appending(path: "Pictures")),
-            Place(name: "Musik", symbol: "music.note", url: home.appending(path: "Music")),
-            Place(name: "Filme", symbol: "film", url: home.appending(path: "Movies")),
+            Place(name: t("Benutzerordner"), symbol: "house", url: home),
+            Place(name: t("Schreibtisch"), symbol: "menubar.dock.rectangle", url: home.appending(path: "Desktop")),
+            Place(name: t("Dokumente"), symbol: "doc", url: home.appending(path: "Documents")),
+            Place(name: t("Downloads"), symbol: "arrow.down.circle", url: home.appending(path: "Downloads")),
+            Place(name: t("Programme"), symbol: "square.grid.2x2", url: URL(fileURLWithPath: "/Applications")),
+            Place(name: t("Bilder"), symbol: "photo", url: home.appending(path: "Pictures")),
+            Place(name: t("Musik"), symbol: "music.note", url: home.appending(path: "Music")),
+            Place(name: t("Filme"), symbol: "film", url: home.appending(path: "Movies")),
         ]
         let icloud = home.appending(path: "Library/Mobile Documents/com~apple~CloudDocs")
         if fm.fileExists(atPath: icloud.path) {

@@ -24,17 +24,20 @@ struct ContentView: View {
             case .transfer(let transfer):
                 TransferSheet(transfer: transfer)
             case .rename(let url):
-                NameSheet(title: "Umbenennen", message: "Neuer Name für „\(url.lastPathComponent)“:",
-                          initial: url.lastPathComponent, confirm: "Umbenennen") { app.rename(url, to: $0) }
+                NameSheet(title: t("Umbenennen"), message: t("Neuer Name für „%@“:", url.lastPathComponent),
+                          initial: url.lastPathComponent, confirm: t("Umbenennen")) { app.rename(url, to: $0) }
             case .newFolder(let dir, let items):
-                NameSheet(title: items.isEmpty ? "Neuer Ordner" : "Neuer Ordner mit Auswahl",
-                          message: items.isEmpty ? "Ordner erstellen in „\(dir.lastPathComponent)“:"
-                              : "\(Fmt.objects(items.count)) in einen neuen Ordner in „\(dir.lastPathComponent)“ verschieben:",
-                          initial: app.suggestedFolderName(in: dir), confirm: "Erstellen") {
+                NameSheet(title: items.isEmpty ? t("Neuer Ordner") : t("Neuer Ordner mit Auswahl"),
+                          message: items.isEmpty ? t("Ordner erstellen in „%@“:", dir.lastPathComponent)
+                              : t("%@ in einen neuen Ordner in „%@“ verschieben:", Fmt.objects(items.count),
+                                  dir.lastPathComponent),
+                          initial: app.suggestedFolderName(in: dir), confirm: t("Erstellen")) {
                     app.createFolder(in: dir, named: $0, moving: items)
                 }
             case .trash(let urls):
                 TrashSheet(urls: urls)
+            case .archive(let items, let destination):
+                ArchiveSheet(items: items, destination: destination)
             }
         }
         .alert(item: $app.alert) { alert in
@@ -49,27 +52,39 @@ struct ActionBar: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            FKeyButton(key: "F2", title: "Umbenennen", symbol: "pencil") { app.requestRename() }
-            FKeyButton(key: "F5", title: "Kopieren", symbol: "doc.on.doc") { app.requestTransfer(.copy) }
-            FKeyButton(key: "F6", title: "Verschieben", symbol: "arrow.right.doc.on.clipboard") {
+            FKeyButton(key: "F2", title: t("Umbenennen"), symbol: "pencil") { app.requestRename() }
+            FKeyButton(key: "F5", title: t("Kopieren"), symbol: "doc.on.doc") { app.requestTransfer(.copy) }
+            FKeyButton(key: "F6", title: t("Verschieben"), symbol: "arrow.right.doc.on.clipboard") {
                 app.requestTransfer(.move)
             }
-            FKeyButton(key: "F7", title: "Neuer Ordner", symbol: "folder.badge.plus") { app.requestNewFolder() }
-            FKeyButton(key: "F8", title: "Papierkorb", symbol: "trash") { app.requestTrash() }
-            FKeyButton(key: "F9", title: "Speicherplatz", symbol: "chart.pie") {
+            FKeyButton(key: "F7", title: t("Neuer Ordner"), symbol: "folder.badge.plus") { app.requestNewFolder() }
+            FKeyButton(key: "F8", title: t("Papierkorb"), symbol: "trash") { app.requestTrash() }
+            FKeyButton(key: "F9", title: t("Speicherplatz"), symbol: "chart.pie") {
                 app.storage.analyze(app.activePane.url)
                 openWindow(id: "storage")
+            }
+            FKeyButton(key: "⌥⌘A", title: t("ZIP"), symbol: "archivebox") { app.requestArchive() }
+            FKeyButton(key: "F10", title: t("Sync"), symbol: "arrow.triangle.2.circlepath") {
+                app.sync.prepare(left: app.activePane.url, right: app.targetPane.url)
+                openWindow(id: "sync")
             }
 
             Spacer(minLength: 12)
 
             if let progress = app.progress {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(progress.title) \(progress.done + 1) von \(progress.total): \(progress.current)")
+                    Text(progress.totalBytes > 0
+                         ? t("%@ %@ von %@: %@", progress.title, Fmt.size(progress.doneBytes), Fmt.size(progress.totalBytes),
+                             progress.current)
+                         : t("%@ %ld von %ld: %@", progress.title, progress.done + 1, progress.total, progress.current))
                         .font(.caption)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
+                    if progress.totalBytes > 0 {
+                        ProgressView(value: Double(progress.doneBytes), total: Double(progress.totalBytes))
+                    } else {
+                        ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
+                    }
                 }
                 .frame(maxWidth: 260)
                 Button("Abbrechen") { app.cancelOperation() }
@@ -125,7 +140,7 @@ struct TransferSheet: View {
     @State private var policy: ConflictPolicy = .keepBoth
 
     private var subject: String {
-        transfer.sources.count == 1 ? "„\(transfer.sources[0].lastPathComponent)“" : Fmt.objects(transfer.sources.count)
+        transfer.sources.count == 1 ? t("„%@“", transfer.sources[0].lastPathComponent) : Fmt.objects(transfer.sources.count)
     }
 
     var body: some View {
@@ -135,10 +150,10 @@ struct TransferSheet: View {
                     .font(.system(size: 28))
                     .foregroundStyle(Color.accentColor)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(subject) \(transfer.kind == .copy ? "kopieren" : "verschieben")")
+                    Text(transfer.kind == .copy ? t("%@ kopieren", subject) : t("%@ verschieben", subject))
                         .font(.headline)
                         .lineLimit(2)
-                    Text("nach \(transfer.destination.path)")
+                    Text(t("nach %@", transfer.destination.path))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -164,8 +179,8 @@ struct TransferSheet: View {
             if !transfer.conflicts.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Label(transfer.conflicts.count == 1
-                          ? "„\(transfer.conflicts[0])“ existiert bereits am Ziel."
-                          : "\(transfer.conflicts.count) Objekte existieren bereits am Ziel.",
+                          ? t("„%@“ existiert bereits am Ziel.", transfer.conflicts[0])
+                          : t("%ld Objekte existieren bereits am Ziel.", transfer.conflicts.count),
                           systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                     Picker("Vorhandene Objekte:", selection: $policy) {
@@ -242,7 +257,7 @@ struct NameSheet: View {
     private func submit() {
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         dismiss()
-        if name != initial || confirm != "Umbenennen" { onConfirm(name) }
+        if name != initial || confirm != t("Umbenennen") { onConfirm(name) }
     }
 }
 
@@ -258,8 +273,8 @@ struct TrashSheet: View {
                     .font(.system(size: 28))
                     .foregroundStyle(.red)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(urls.count == 1 ? "„\(urls[0].lastPathComponent)“ in den Papierkorb legen?"
-                         : "\(Fmt.objects(urls.count)) in den Papierkorb legen?")
+                    Text(urls.count == 1 ? t("„%@“ in den Papierkorb legen?", urls[0].lastPathComponent)
+                         : t("%@ in den Papierkorb legen?", Fmt.objects(urls.count)))
                         .font(.headline)
                         .lineLimit(2)
                     Text("Du kannst sie im Papierkorb wiederherstellen.")

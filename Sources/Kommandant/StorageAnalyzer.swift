@@ -131,7 +131,7 @@ final class StorageScanner: @unchecked Sendable {
         children.sort { $0.size > $1.size }
         if children.count > Self.keepChildren {
             let rest = children[Self.keepChildren...]
-            let other = StorageNode(url: url, name: "\(rest.count) weitere Objekte", isDirectory: false,
+            let other = StorageNode(url: url, name: t("%ld weitere Objekte", rest.count), isDirectory: false,
                                     size: rest.reduce(0) { $0 + $1.size },
                                     fileCount: rest.reduce(0) { $0 + $1.fileCount }, isAggregate: true)
             other.parent = node
@@ -217,8 +217,9 @@ struct CleanupSuggestion: Identifiable {
             let isDownloads = url.lastPathComponent == "Downloads"
             let (size, old) = StorageScanner.folderSize(url, olderThan: isDownloads ? cutoff : nil)
             guard size > 0 else { return nil }
-            let text = isDownloads && old > 0 ? detail + " Davon \(Fmt.size(old)) älter als 3 Monate." : detail
-            return CleanupSuggestion(title: title, detail: text, symbol: symbol, url: url, size: size, action: action)
+            let detail = t(detail)
+            let text = isDownloads && old > 0 ? detail + " " + t("Davon %@ älter als 3 Monate.", Fmt.size(old)) : detail
+            return CleanupSuggestion(title: t(title), detail: text, symbol: symbol, url: url, size: size, action: action)
         }
         .sorted { $0.size > $1.size }
     }
@@ -243,7 +244,7 @@ final class StorageAnalyzer: ObservableObject {
 
     var rootName: String {
         if let volume = Place.volumes.first(where: { $0.url.path == rootURL.path }) { return volume.name }
-        return rootURL.path == FileManager.default.homeDirectoryForCurrentUser.path ? "Benutzerordner"
+        return rootURL.path == FileManager.default.homeDirectoryForCurrentUser.path ? t("Benutzerordner")
             : rootURL.lastPathComponent
     }
 
@@ -318,11 +319,11 @@ final class StorageAnalyzer: ObservableObject {
                 try FileManager.default.trashItem(at: node.url, resultingItemURL: nil)
                 remove(node)
             } catch {
-                failed.append("„\(node.name)“: \(error.localizedDescription)")
+                failed.append(t("„%@“: %@", node.name, error.localizedDescription))
             }
         }
         if !failed.isEmpty {
-            alert = AppAlert(title: "Nicht alles konnte verschoben werden", message: failed.joined(separator: "\n"))
+            alert = AppAlert(title: t("Nicht alles konnte verschoben werden"), message: failed.joined(separator: "\n"))
         }
         objectWillChange.send()
         loadSuggestions()
@@ -334,8 +335,8 @@ final class StorageAnalyzer: ObservableObject {
             var error: NSDictionary?
             NSAppleScript(source: "tell application \"Finder\" to empty trash")?.executeAndReturnError(&error)
             if let error {
-                alert = AppAlert(title: "Papierkorb konnte nicht geleert werden",
-                                 message: error[NSAppleScript.errorMessage] as? String ?? "Unbekannter Fehler")
+                alert = AppAlert(title: t("Papierkorb konnte nicht geleert werden"),
+                                 message: error[NSAppleScript.errorMessage] as? String ?? t("Unbekannter Fehler"))
             }
         case .deleteContents:
             let items = (try? FileManager.default.contentsOfDirectory(at: suggestion.url, includingPropertiesForKeys: nil)) ?? []
@@ -344,8 +345,8 @@ final class StorageAnalyzer: ObservableObject {
                 do { try FileManager.default.removeItem(at: item) } catch { failed += 1 }
             }
             if failed > 0 {
-                alert = AppAlert(title: "\(suggestion.title) teilweise gelöscht",
-                                 message: "\(Fmt.objects(failed)) konnten nicht gelöscht werden (in Benutzung oder geschützt).")
+                alert = AppAlert(title: t("%@ teilweise gelöscht", suggestion.title),
+                                 message: t("%@ konnten nicht gelöscht werden (in Benutzung oder geschützt).", Fmt.objects(failed)))
             }
         case .review:
             break

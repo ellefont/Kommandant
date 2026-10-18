@@ -5,8 +5,8 @@ import Foundation
 enum TransferKind {
     case copy, move
 
-    var verb: String { self == .copy ? "Kopieren" : "Verschieben" }
-    var progressTitle: String { self == .copy ? "Kopiere" : "Verschiebe" }
+    var verb: String { self == .copy ? t("Kopieren") : t("Verschieben") }
+    var progressTitle: String { self == .copy ? t("Kopiere") : t("Verschiebe") }
     var symbol: String { self == .copy ? "doc.on.doc" : "arrow.right.doc.on.clipboard" }
 }
 
@@ -27,6 +27,8 @@ enum ActiveSheet: Identifiable {
     /// Directory to create the folder in, plus items to move into it (may be empty).
     case newFolder(URL, [URL])
     case trash([URL])
+    /// Items to zip and the folder to put the archive in.
+    case archive([URL], URL)
 
     var id: String {
         switch self {
@@ -34,6 +36,7 @@ enum ActiveSheet: Identifiable {
         case .rename: "rename"
         case .newFolder: "newFolder"
         case .trash: "trash"
+        case .archive: "archive"
         }
     }
 }
@@ -43,6 +46,9 @@ struct OperationProgress {
     var total: Int
     var done = 0
     var current = ""
+    /// When set, progress is shown in bytes instead of items.
+    var totalBytes: Int64 = 0
+    var doneBytes: Int64 = 0
 }
 
 struct AppAlert: Identifiable {
@@ -72,8 +78,10 @@ final class AppModel: ObservableObject {
     @Published var alert: AppAlert?
     @Published private(set) var progress: OperationProgress?
     private var cancelFlag: CancelFlag?
+    private var runningProcess: RunningProcess?
     let volumes = VolumeMonitor()
     let storage = StorageAnalyzer()
+    let sync = SyncModel()
     private var volumesSubscription: AnyCancellable?
 
     init() {
@@ -130,10 +138,10 @@ final class AppModel: ObservableObject {
     /// "Neuer Ordner", "Neuer Ordner 2", … – the first name not yet used in `directory`.
     func suggestedFolderName(in directory: URL) -> String {
         let fm = FileManager.default
-        var name = "Neuer Ordner"
+        var name = t("Neuer Ordner")
         var counter = 2
         while fm.fileExists(atPath: directory.appending(path: name).path) {
-            name = "Neuer Ordner \(counter)"
+            name = t("Neuer Ordner %ld", counter)
             counter += 1
         }
         return name
@@ -174,7 +182,7 @@ final class AppModel: ObservableObject {
                 do {
                     lastResult = try FileOps.transfer(source, to: transfer.destination, kind: transfer.kind, policy: policy)
                 } catch {
-                    errors.append("„\(source.lastPathComponent)“: \(error.localizedDescription)")
+                    errors.append(t("„%@“: %@", source.lastPathComponent, error.localizedDescription))
                 }
             }
             let cancelled = flag.isCancelled
@@ -189,23 +197,45 @@ final class AppModel: ObservableObject {
                     pane.selection = [lastResult.path]
                 }
                 if !finalErrors.isEmpty {
-                    self.alert = AppAlert(title: "\(transfer.kind.verb) fehlgeschlagen",
+                    self.alert = AppAlert(title: transfer.kind == .copy ? t("Kopieren fehlgeschlagen") : t("Verschieben fehlgeschlagen"),
                                           message: finalErrors.joined(separator: "\n"))
                 } else if cancelled {
-                    self.alert = AppAlert(title: "Abgebrochen", message: "Der Vorgang wurde abgebrochen.")
+                    self.alert = AppAlert(title: t("Abgebrochen"), message: t("Der Vorgang wurde abgebrochen."))
                 }
             }
         }
     }
 
-    func cancelOperation() { cancelFlag?.cancel() }
+    func cancelOperation() {
+        cancelFlag?.cancel()
+        runningProcess?.interrupt()
+    }
+
+    func startOperation(flag: CancelFlag, process: RunningProcess? = nil, progress: OperationProgress) {
+        cancelFlag = flag
+        runningProcess = process
+        self.progress = progress
+    }
+
+    func updateProgress(_ change: (inout OperationProgress) -> Void) {
+        if var current = progress {
+            change(&current)
+            progress = current
+        }
+    }
+
+    func finishOperation() {
+        cancelFlag = nil
+        runningProcess = nil
+        progress = nil
+    }
 
     func rename(_ url: URL, to newName: String) {
         let target = url.deletingLastPathComponent().appending(path: newName)
-        perform("Umbenennen fehlgeschlagen") {
+        perform(t("Umbenennen fehlgeschlagen")) {
             try FileOps.validate(name: newName)
             guard !FileManager.default.fileExists(atPath: target.path) else {
-                throw FileOpError("Ein Objekt mit dem Namen „\(newName)“ existiert bereits.")
+                throw FileOpError(t("Ein Objekt mit dem Namen „%@“ existiert bereits.", newName))
             }
             try FileManager.default.moveItem(at: url, to: target)
         }
@@ -215,10 +245,10 @@ final class AppModel: ObservableObject {
 
     func createFolder(in directory: URL, named name: String, moving items: [URL] = []) {
         let target = directory.appending(path: name)
-        let created = perform("Ordner konnte nicht erstellt werden") {
+        let created = perform(t("Ordner konnte nicht erstellt werden")) {
             try FileOps.validate(name: name)
             guard !FileManager.default.fileExists(atPath: target.path) else {
-                throw FileOpError("Ein Objekt mit dem Namen „\(name)“ existiert bereits.")
+                throw FileOpError(t("Ein Objekt mit dem Namen „%@“ existiert bereits.", name))
             }
             try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
         }
@@ -228,11 +258,11 @@ final class AppModel: ObservableObject {
                 do {
                     try FileManager.default.moveItem(at: item, to: target.appending(path: item.lastPathComponent))
                 } catch {
-                    failed.append("„\(item.lastPathComponent)“: \(error.localizedDescription)")
+                    failed.append(t("„%@“: %@", item.lastPathComponent, error.localizedDescription))
                 }
             }
             if !failed.isEmpty {
-                alert = AppAlert(title: "Nicht alles konnte verschoben werden", message: failed.joined(separator: "\n"))
+                alert = AppAlert(title: t("Nicht alles konnte verschoben werden"), message: failed.joined(separator: "\n"))
             }
         }
         for pane in [left, right] where pane.url.path == directory.path {
@@ -242,7 +272,7 @@ final class AppModel: ObservableObject {
     }
 
     func trash(_ urls: [URL]) {
-        perform("In den Papierkorb legen fehlgeschlagen") {
+        perform(t("In den Papierkorb legen fehlgeschlagen")) {
             for url in urls { try FileManager.default.trashItem(at: url, resultingItemURL: nil) }
         }
         left.reload()
@@ -270,7 +300,7 @@ final class AppModel: ObservableObject {
             } catch {
                 let message = error.localizedDescription
                 await MainActor.run {
-                    self.alert = AppAlert(title: "„\(volume.name)“ konnte nicht ausgeworfen werden",
+                    self.alert = AppAlert(title: t("„%@“ konnte nicht ausgeworfen werden", volume.name),
                                           message: message)
                 }
             }
@@ -319,7 +349,7 @@ enum FileOps {
         var target = dir.appending(path: src.lastPathComponent)
 
         if dir.path == src.path || dir.path.hasPrefix(src.path + "/") {
-            throw FileOpError("Ein Ordner kann nicht in sich selbst kopiert oder verschoben werden.")
+            throw FileOpError(t("Ein Ordner kann nicht in sich selbst kopiert oder verschoben werden."))
         }
         if target.path == src.path {
             if kind == .move { return nil }
@@ -347,7 +377,7 @@ enum FileOps {
         let base = url.deletingPathExtension().lastPathComponent
         var counter = 1
         while true {
-            let suffix = counter == 1 ? " Kopie" : " Kopie \(counter)"
+            let suffix = counter == 1 ? t(" Kopie") : t(" Kopie %ld", counter)
             let name = base + suffix + (ext.isEmpty ? "" : ".\(ext)")
             let candidate = dir.appending(path: name)
             if !fm.fileExists(atPath: candidate.path) { return candidate }
@@ -357,10 +387,10 @@ enum FileOps {
 
     static func validate(name: String) throws {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { throw FileOpError("Der Name darf nicht leer sein.") }
+        guard !trimmed.isEmpty else { throw FileOpError(t("Der Name darf nicht leer sein.")) }
         guard !name.contains("/"), !name.contains(":") else {
-            throw FileOpError("Der Name darf keine „/“ oder „:“ enthalten.")
+            throw FileOpError(t("Der Name darf keine „/“ oder „:“ enthalten."))
         }
-        guard name != ".", name != ".." else { throw FileOpError("Dieser Name ist nicht erlaubt.") }
+        guard name != ".", name != ".." else { throw FileOpError(t("Dieser Name ist nicht erlaubt.")) }
     }
 }

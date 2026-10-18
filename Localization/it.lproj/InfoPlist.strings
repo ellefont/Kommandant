@@ -1,0 +1,7 @@
+"CFBundleDisplayName" = "Kommandant";
+"NSDesktopFolderUsageDescription" = "Kommandant mostra e gestisce i file sulla tua Scrivania.";
+"NSDocumentsFolderUsageDescription" = "Kommandant mostra e gestisce i file nella cartella Documenti.";
+"NSDownloadsFolderUsageDescription" = "Kommandant mostra e gestisce i file nella cartella Download.";
+"NSRemovableVolumesUsageDescription" = "Kommandant mostra e gestisce i file sui dischi rimovibili.";
+"NSNetworkVolumesUsageDescription" = "Kommandant mostra e gestisce i file sui volumi di rete.";
+"NSAppleEventsUsageDescription" = "Kommandant chiede al Finder di svuotare il Cestino.";

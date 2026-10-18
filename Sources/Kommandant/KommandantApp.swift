@@ -14,23 +14,34 @@ struct KommandantApp: App {
         Window("Kommandant \(appVersion)", id: "main") {
             ContentView()
                 .environmentObject(app)
-                .environment(\.locale, Fmt.locale)
                 .onAppear { NSApplication.shared.activate() }
                 .toolbar { ToolbarItem(placement: .principal) { WindowTitle(title: "Kommandant \(appVersion)") } }
         }
         .defaultSize(width: 1180, height: 720)
         .windowToolbarStyle(.unified(showsTitle: false))
 
-        Window("Speicherplatz – Kommandant \(appVersion)", id: "storage") {
+        Window(t("Speicherplatz – Kommandant %@", appVersion), id: "storage") {
             StorageView(storage: app.storage)
                 .environmentObject(app)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        WindowTitle(title: "Speicherplatz – Kommandant \(appVersion)")
+                        WindowTitle(title: t("Speicherplatz – Kommandant %@", appVersion))
                     }
                 }
         }
         .defaultSize(width: 980, height: 720)
+        .windowToolbarStyle(.unified(showsTitle: false))
+
+        Window(t("Synchronisieren – Kommandant %@", appVersion), id: "sync") {
+            SyncView(model: app.sync)
+                .environmentObject(app)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        WindowTitle(title: t("Synchronisieren – Kommandant %@", appVersion))
+                    }
+                }
+        }
+        .defaultSize(width: 1180, height: 820)
         .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -59,6 +70,11 @@ struct KommandantApp: App {
                 AnalyzeStorageButton(title: "Speicherplatz analysieren", url: nil)
                     .environmentObject(app)
                     .keyboardShortcut(fKey(9), modifiers: [])
+                Button(t("Als ZIP archivieren …")) { app.requestArchive() }
+                    .keyboardShortcut("a", modifiers: [.command, .option])
+                SyncButton(title: "Synchronisieren …", left: nil, right: nil)
+                    .environmentObject(app)
+                    .keyboardShortcut(fKey(10), modifiers: [])
                 Divider()
                 Button("Pfad kopieren") { app.copyPaths(app.activePane.selectedURLs) }
                     .keyboardShortcut("c", modifiers: [.command, .option])
@@ -106,9 +122,25 @@ struct AnalyzeStorageButton: View {
     let url: URL?
 
     var body: some View {
-        Button(title) {
+        Button(t(title)) {
             app.storage.analyze(url ?? app.activePane.url)
             openWindow(id: "storage")
+        }
+    }
+}
+
+/// Opens the sync window with a folder pair (default: active pane → other pane).
+struct SyncButton: View {
+    @EnvironmentObject private var app: AppModel
+    @Environment(\.openWindow) private var openWindow
+    let title: String
+    let left: URL?
+    let right: URL?
+
+    var body: some View {
+        Button(t(title)) {
+            app.sync.prepare(left: left ?? app.activePane.url, right: right ?? app.targetPane.url)
+            openWindow(id: "sync")
         }
     }
 }

@@ -10,10 +10,10 @@ private enum AgeFilter: Hashable, CaseIterable {
 
     var title: String {
         switch self {
-        case .all: "Alle"
-        case .sixMonths: "Älter als 6 Monate"
-        case .oneYear: "Älter als 1 Jahr"
-        case .twoYears: "Älter als 2 Jahre"
+        case .all: t("Alle")
+        case .sixMonths: t("Älter als 6 Monate")
+        case .oneYear: t("Älter als 1 Jahr")
+        case .twoYears: t("Älter als 2 Jahre")
         }
     }
 
@@ -60,7 +60,6 @@ struct StorageView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 760, minHeight: 520)
-        .environment(\.locale, Fmt.locale)
         .onAppear {
             if storage.root == nil, !storage.isScanning { storage.start() }
         }
@@ -71,16 +70,16 @@ struct StorageView: View {
                 pendingTrash = []
             }
         } message: {
-            Text("\(Fmt.size(pendingTrash.reduce(0) { $0 + $1.size })) – der Platz wird erst frei, wenn du den Papierkorb leerst.")
+            Text(t("%@ – der Platz wird erst frei, wenn du den Papierkorb leerst.", Fmt.size(pendingTrash.reduce(0) { $0 + $1.size })))
         }
         .alert(cleanupTitle, isPresented: Binding(get: { pendingCleanup != nil }, set: { if !$0 { pendingCleanup = nil } })) {
             Button("Abbrechen", role: .cancel) { pendingCleanup = nil }
-            Button(pendingCleanup?.action == .emptyTrash ? "Papierkorb leeren" : "Endgültig löschen", role: .destructive) {
+            Button(pendingCleanup?.action == .emptyTrash ? t("Papierkorb leeren") : t("Endgültig löschen"), role: .destructive) {
                 if let suggestion = pendingCleanup { storage.perform(suggestion) }
                 pendingCleanup = nil
             }
         } message: {
-            Text("Dadurch werden \(Fmt.size(pendingCleanup?.size ?? 0)) frei. Dieser Vorgang kann nicht widerrufen werden.")
+            Text(t("Dadurch werden %@ frei. Dieser Vorgang kann nicht widerrufen werden.", Fmt.size(pendingCleanup?.size ?? 0)))
         }
         .alert(item: $storage.alert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
@@ -88,13 +87,13 @@ struct StorageView: View {
     }
 
     private var trashTitle: String {
-        pendingTrash.count == 1 ? "„\(pendingTrash[0].name)“ in den Papierkorb legen?"
-            : "\(Fmt.objects(pendingTrash.count)) in den Papierkorb legen?"
+        pendingTrash.count == 1 ? t("„%@“ in den Papierkorb legen?", pendingTrash[0].name)
+            : t("%@ in den Papierkorb legen?", Fmt.objects(pendingTrash.count))
     }
 
     private var cleanupTitle: String {
         guard let s = pendingCleanup else { return "" }
-        return s.action == .emptyTrash ? "Papierkorb leeren?" : "Inhalt von „\(s.title)“ endgültig löschen?"
+        return s.action == .emptyTrash ? t("Papierkorb leeren?") : t("Inhalt von „%@“ endgültig löschen?", s.title)
     }
 
     // MARK: Top bar
@@ -121,8 +120,8 @@ struct StorageView: View {
                 }
                 Section("Ordner") {
                     Button("Benutzerordner") { storage.analyze(FileManager.default.homeDirectoryForCurrentUser) }
-                    Button("Linke Spalte: \(app.left.title)") { storage.analyze(app.left.url) }
-                    Button("Rechte Spalte: \(app.right.title)") { storage.analyze(app.right.url) }
+                    Button(t("Linke Spalte: %@", app.left.title)) { storage.analyze(app.left.url) }
+                    Button(t("Rechte Spalte: %@", app.right.title)) { storage.analyze(app.right.url) }
                     Button("Ordner wählen …", action: chooseFolder)
                 }
             } label: {
@@ -144,12 +143,12 @@ struct StorageView: View {
 
     private var statusText: String {
         if storage.isScanning {
-            return "\(storage.scannedFiles.formatted(.number.locale(Fmt.locale))) Dateien … \(storage.scanningPath)"
+            return t("%@ Dateien … %@", storage.scannedFiles.formatted(.number.locale(Fmt.locale)), storage.scanningPath)
         }
-        guard let root = storage.root else { return "Noch nicht analysiert" }
-        var text = "\(Fmt.size(root.size)) in \(root.fileCount.formatted(.number.locale(Fmt.locale))) Dateien"
-        text += " · \(String(format: "%.1f", storage.duration)) s"
-        if storage.inaccessible > 0 { text += " · \(storage.inaccessible) Ordner ohne Zugriff" }
+        guard let root = storage.root else { return t("Noch nicht analysiert") }
+        var text = t("%@ in %@ Dateien", Fmt.size(root.size), root.fileCount.formatted(.number.locale(Fmt.locale)))
+        text += " · " + storage.duration.formatted(.number.precision(.fractionLength(1)).locale(Fmt.locale)) + " s"
+        if storage.inaccessible > 0 { text += " · " + t("%ld Ordner ohne Zugriff", storage.inaccessible) }
         return text
     }
 
@@ -157,7 +156,7 @@ struct StorageView: View {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.prompt = "Analysieren"
+        panel.prompt = t("Analysieren")
         if panel.runModal() == .OK, let url = panel.url { storage.analyze(url) }
     }
 
@@ -170,8 +169,8 @@ struct StorageView: View {
         } else if storage.isScanning {
             VStack(spacing: 12) {
                 ProgressView()
-                Text("Analysiere „\(storage.rootName)“ …").font(.headline)
-                Text("\(storage.scannedFiles.formatted(.number.locale(Fmt.locale))) Dateien gezählt")
+                Text(t("Analysiere „%@“ …", storage.rootName)).font(.headline)
+                Text(t("%@ Dateien gezählt", storage.scannedFiles.formatted(.number.locale(Fmt.locale))))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -200,9 +199,9 @@ private struct VolumeUsageBar: View {
                 HStack {
                     Label(volume.name, systemImage: volume.symbol).font(.callout.weight(.semibold))
                     Spacer()
-                    Text("\(Fmt.size(used)) von \(Fmt.size(total)) belegt · ")
+                    Text(t("%@ von %@ belegt · ", Fmt.size(used), Fmt.size(total)))
                         .foregroundStyle(.secondary)
-                    + Text("\(Fmt.size(free)) frei").foregroundStyle(free < total / 10 ? .red : .green).bold()
+                    + Text(t("%@ frei", Fmt.size(free))).foregroundStyle(free < total / 10 ? .red : .green).bold()
                 }
                 .font(.callout)
                 GeometryReader { geo in
@@ -218,9 +217,9 @@ private struct VolumeUsageBar: View {
                 .frame(height: 10)
                 if storage.root != nil {
                     HStack(spacing: 14) {
-                        legend(Color.accentColor, "„\(storage.rootName)“: \(Fmt.size(analyzed))")
-                        legend(Color.accentColor.opacity(0.35), "Rest belegt: \(Fmt.size(used - analyzed))")
-                        legend(Color.primary.opacity(0.08), "Frei")
+                        legend(Color.accentColor, t("„%@“: %@", storage.rootName, Fmt.size(analyzed)))
+                        legend(Color.accentColor.opacity(0.35), t("Rest belegt: %@", Fmt.size(used - analyzed)))
+                        legend(Color.primary.opacity(0.08), t("Frei"))
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -341,11 +340,11 @@ private struct StackedBar: View {
                     Rectangle()
                         .fill(barColors[index].gradient)
                         .frame(width: max(0, geo.size.width * CGFloat(child.size) / CGFloat(total) - 1))
-                        .help("\(child.name): \(Fmt.size(child.size))")
+                        .help(Text(verbatim: "\(child.name): \(Fmt.size(child.size))"))
                 }
                 if rest > 0 {
                     Rectangle().fill(Color.gray.opacity(0.4))
-                        .help("Sonstiges: \(Fmt.size(rest))")
+                        .help(t("Sonstiges: %@", Fmt.size(rest)))
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -403,10 +402,10 @@ private struct StorageRow: View {
     private var subtitle: String {
         var parts: [String] = []
         if node.isDirectory || node.isAggregate {
-            parts.append("\(node.fileCount.formatted(.number.locale(Fmt.locale))) Dateien")
+            parts.append(t("%@ Dateien", node.fileCount.formatted(.number.locale(Fmt.locale))))
         }
         if node.modified != .distantPast {
-            parts.append("geändert \(node.modified.formatted(.relative(presentation: .named).locale(Fmt.locale)))")
+            parts.append(t("geändert %@", node.modified.formatted(.relative(presentation: .named).locale(Fmt.locale))))
         }
         return parts.joined(separator: " · ")
     }
@@ -468,7 +467,7 @@ private struct LargestFilesView: View {
                 }
                 .fixedSize()
                 Spacer()
-                Text("\(Fmt.objects(files.count)) · zusammen \(Fmt.size(files.reduce(0) { $0 + $1.size }))")
+                Text(t("%@ · zusammen %@", Fmt.objects(files.count), Fmt.size(files.reduce(0) { $0 + $1.size })))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 14)
@@ -545,7 +544,7 @@ private struct CleanupView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                section("Vorschläge", subtitle: "Bekannte Orte, an denen sich oft Platz gewinnen lässt.") {
+                section(t("Vorschläge"), subtitle: t("Bekannte Orte, an denen sich oft Platz gewinnen lässt.")) {
                     if storage.isLoadingSuggestions && storage.suggestions.isEmpty {
                         ProgressView().frame(maxWidth: .infinity)
                     }
@@ -558,8 +557,8 @@ private struct CleanupView: View {
                 }
 
                 if !storage.devFolders.isEmpty {
-                    section("Entwickler-Ordner",
-                            subtitle: "Abhängigkeiten und Build-Ordner in „\(storage.rootName)“. Lassen sich jederzeit neu erzeugen (npm install, swift build, …).") {
+                    section(t("Entwickler-Ordner"),
+                            subtitle: t("Abhängigkeiten und Build-Ordner in „%@“. Lassen sich jederzeit neu erzeugen (npm install, swift build, …).", storage.rootName)) {
                         ForEach(storage.devFolders.prefix(50)) { folder in
                             HStack(spacing: 10) {
                                 Image(systemName: "shippingbox").foregroundStyle(.orange).frame(width: 22)
