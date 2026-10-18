@@ -24,7 +24,8 @@ struct PendingTransfer {
 enum ActiveSheet: Identifiable {
     case transfer(PendingTransfer)
     case rename(URL)
-    case newFolder(URL)
+    /// Directory to create the folder in, plus items to move into it (may be empty).
+    case newFolder(URL, [URL])
     case trash([URL])
 
     var id: String {
@@ -115,7 +116,27 @@ final class AppModel: ObservableObject {
     }
 
     func requestNewFolder(in side: Side? = nil) {
-        sheet = .newFolder(pane(side ?? active).url)
+        sheet = .newFolder(pane(side ?? active).url, [])
+    }
+
+    /// Like Finder's "Neuer Ordner mit Auswahl": creates a folder and moves the items into it.
+    func requestNewFolderWithSelection(_ urls: [URL]? = nil, in side: Side? = nil) {
+        let side = side ?? active
+        let items = urls ?? pane(side).selectedURLs
+        guard !items.isEmpty, !isBusy else { return NSSound.beep() }
+        sheet = .newFolder(pane(side).url, items)
+    }
+
+    /// "Neuer Ordner", "Neuer Ordner 2", … – the first name not yet used in `directory`.
+    func suggestedFolderName(in directory: URL) -> String {
+        let fm = FileManager.default
+        var name = "Neuer Ordner"
+        var counter = 2
+        while fm.fileExists(atPath: directory.appending(path: name).path) {
+            name = "Neuer Ordner \(counter)"
+            counter += 1
+        }
+        return name
     }
 
     func requestTrash(_ urls: [URL]? = nil) {
@@ -192,11 +213,27 @@ final class AppModel: ObservableObject {
         activePane.selection = [target.path]
     }
 
-    func createFolder(in directory: URL, named name: String) {
+    func createFolder(in directory: URL, named name: String, moving items: [URL] = []) {
         let target = directory.appending(path: name)
-        perform("Ordner konnte nicht erstellt werden") {
+        let created = perform("Ordner konnte nicht erstellt werden") {
             try FileOps.validate(name: name)
+            guard !FileManager.default.fileExists(atPath: target.path) else {
+                throw FileOpError("Ein Objekt mit dem Namen „\(name)“ existiert bereits.")
+            }
             try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
+        }
+        if created, !items.isEmpty {
+            var failed: [String] = []
+            for item in items {
+                do {
+                    try FileManager.default.moveItem(at: item, to: target.appending(path: item.lastPathComponent))
+                } catch {
+                    failed.append("„\(item.lastPathComponent)“: \(error.localizedDescription)")
+                }
+            }
+            if !failed.isEmpty {
+                alert = AppAlert(title: "Nicht alles konnte verschoben werden", message: failed.joined(separator: "\n"))
+            }
         }
         for pane in [left, right] where pane.url.path == directory.path {
             pane.reload()
@@ -212,8 +249,15 @@ final class AppModel: ObservableObject {
         right.reload()
     }
 
-    private func perform(_ title: String, _ body: () throws -> Void) {
-        do { try body() } catch { alert = AppAlert(title: title, message: error.localizedDescription) }
+    @discardableResult
+    private func perform(_ title: String, _ body: () throws -> Void) -> Bool {
+        do {
+            try body()
+            return true
+        } catch {
+            alert = AppAlert(title: title, message: error.localizedDescription)
+            return false
+        }
     }
 
     // MARK: Volumes

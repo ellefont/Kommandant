@@ -64,6 +64,9 @@ struct PaneView: View {
             }
             .fixedSize()
 
+            Button { app.requestNewFolder(in: side) } label: { Image(systemName: "folder.badge.plus") }
+                .help("Neuer Ordner (F7)")
+
             placesMenu
 
             Toggle(isOn: $pane.showHidden) { Image(systemName: pane.showHidden ? "eye" : "eye.slash") }
@@ -170,6 +173,8 @@ struct PaneView: View {
             Button("Kopieren \(arrow)") { app.requestTransfer(.copy, urls: urls, from: side) }
             Button("Verschieben \(arrow)") { app.requestTransfer(.move, urls: urls, from: side) }
             Divider()
+            Button("Neuer Ordner") { app.requestNewFolder(in: side) }
+            Button("Neuer Ordner mit Auswahl (\(urls.count))") { app.requestNewFolderWithSelection(urls, in: side) }
             if urls.count == 1 {
                 Button("Umbenennen …") { app.requestRename(urls[0]) }
             }

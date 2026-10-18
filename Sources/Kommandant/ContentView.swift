@@ -26,9 +26,13 @@ struct ContentView: View {
             case .rename(let url):
                 NameSheet(title: "Umbenennen", message: "Neuer Name für „\(url.lastPathComponent)“:",
                           initial: url.lastPathComponent, confirm: "Umbenennen") { app.rename(url, to: $0) }
-            case .newFolder(let dir):
-                NameSheet(title: "Neuer Ordner", message: "Ordner erstellen in „\(dir.lastPathComponent)“:",
-                          initial: "Neuer Ordner", confirm: "Erstellen") { app.createFolder(in: dir, named: $0) }
+            case .newFolder(let dir, let items):
+                NameSheet(title: items.isEmpty ? "Neuer Ordner" : "Neuer Ordner mit Auswahl",
+                          message: items.isEmpty ? "Ordner erstellen in „\(dir.lastPathComponent)“:"
+                              : "\(Fmt.objects(items.count)) in einen neuen Ordner in „\(dir.lastPathComponent)“ verschieben:",
+                          initial: app.suggestedFolderName(in: dir), confirm: "Erstellen") {
+                    app.createFolder(in: dir, named: $0, moving: items)
+                }
             case .trash(let urls):
                 TrashSheet(urls: urls)
             }

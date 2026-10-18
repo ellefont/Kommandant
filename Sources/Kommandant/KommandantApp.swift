@@ -52,6 +52,8 @@ struct KommandantApp: App {
                     .keyboardShortcut(fKey(6), modifiers: [])
                 Button("Neuer Ordner …") { app.requestNewFolder() }
                     .keyboardShortcut(fKey(7), modifiers: [])
+                Button("Neuer Ordner mit Auswahl …") { app.requestNewFolderWithSelection() }
+                    .keyboardShortcut("n", modifiers: [.command, .control])
                 Button("In den Papierkorb legen") { app.requestTrash() }
                     .keyboardShortcut(fKey(8), modifiers: [])
                 AnalyzeStorageButton(title: "Speicherplatz analysieren", url: nil)
